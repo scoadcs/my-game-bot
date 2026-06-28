@@ -1,188 +1,413 @@
-import telebot
-from telebot import types
+Import telebot 
 
-API_TOKEN = "8605294863:AAG8CyJbdStXHIxMDm6UE6aB6yQvVXqCNKI"
-ADMIN_PASSWORD = "test233!"
+From telebot import types 
 
-bot = telebot.TeleBot(API_TOKEN)
+ 
 
-# Глобальна база даних в пам'яті для багатьох гравців
-USERS = {}
-PURCHASES = {}
+API_TOKEN = «8605294863:AAG8CyJbdStXHIxMDm6UE6aB6yQvVXqCNKI» 
 
-MANIACS = {
-    "Тревис": 0,
-    "Майкл": 0,
-    "Паравозик мен": 160,
-    "Робин": 180,
-    "Варден": 200
-}
+ADMIN_PASSWORD = «test233!» 
 
-SURVIVORS = {
-    "Инженер": 20,
-    "Статуя": "🔒 Временно недоступна",
-    "Aссасин": 200,
-    "Медик": 20,
-    "Невидимка": 100,
-    "Нубик": 0,
-    "Aнгел-хранитель": 60,
-    "Блокер": 120,
-    "Пришелец": 120
-}
+ 
 
-def get_keyboard():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("🔑 Регистрация", "🔓 Вход")
-    markup.row("⚙️ Панель Админа")
-    return markup
+Telebot.apihelper.proxy = {‘https’: ‘http://proxy.server:3128’} 
 
-def get_main_keyboard():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("👤 Мой Профиль", "🎒 Владение")
-    markup.row("🏪 Магазин", "🚪 Выйти")
-    return markup
+Bot = telebot.TeleBot(API_TOKEN) 
 
-@bot.message_handler(commands=['start'])
-def start(message):
-    uid = message.from_user.id
-    if uid not in USERS:
-        USERS[uid] = {"pass": "", "diamonds": 0, "level": 1, "state": "", "admin": 0, "name": message.from_user.username or f"id_{uid}"}
-    bot.send_message(message.chat.id, "Добро пожаловать в игру! Пройдите регистрацию или войдите.", reply_markup=get_keyboard())
+ 
 
-@bot.message_handler(func=lambda m: "Регистрация" in m.text)
-def reg(message):
-    uid = message.from_user.id
-    if uid not in USERS:
-        USERS[uid] = {"pass": "", "diamonds": 0, "level": 1, "state": "", "admin": 0, "name": message.from_user.username or f"id_{uid}"}
-    
-    if USERS[uid]["pass"] != "":
-        bot.send_message(message.chat.id, "Вы уже зарегистрированы! Нажмите кнопку 'Вход'.")
-    else:
-        USERS[uid]["state"] = "wait_pass"
-        bot.send_message(message.chat.id, "Придумайте и напишите пароль для защиты вашего аккаунта:")
+USERS = {} 
 
-@bot.message_handler(func=lambda m: "Вход" in m.text)
-def login(message):
-    uid = message.from_user.id
-    if uid in USERS and USERS[uid]["pass"] != "":
-        USERS[uid]["state"] = "wait_login"
-        bot.send_message(message.chat.id, "Введите ваш пароль:")
-    else:
-        bot.send_message(message.chat.id, "Вы еще не зарегистрированы!")
+PURCHASES = {} 
 
-@bot.message_handler(func=lambda m: "Панель" in m.text)
-def adm(message):
-    uid = message.from_user.id
-    if uid not in USERS:
-        USERS[uid] = {"pass": "", "diamonds": 0, "level": 1, "state": "", "admin": 0, "name": message.from_user.username or f"id_{uid}"}
-        
-    if USERS[uid]["admin"] == 1:
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.row("👥 Все участники", "⬅️ В главное меню")
-        bot.send_message(message.chat.id, "Привет, Создатель!", reply_markup=markup)
-    else:
-        USERS[uid]["state"] = "wait_adm"
-        bot.send_message(message.chat.id, "🔐 Введите секретный пароль Администратора:")
+ 
 
-@bot.message_handler(func=lambda m: True)
-def text(message):
-    uid = message.from_user.id
-    if uid not in USERS: return
-    
-    state = USERS[uid]["state"]
-    
-    if state == "wait_pass":
-        USERS[uid]["pass"] = message.text
-        USERS[uid]["state"] = ""
-        bot.send_message(message.chat.id, "🎉 Регистрация успешна!", reply_markup=get_main_keyboard())
-        return
-    elif state == "wait_login":
-        if USERS[uid]["pass"] == message.text:
-            USERS[uid]["state"] = ""
-            bot.send_message(message.chat.id, "✅ Успешный вход!", reply_markup=get_main_keyboard())
-        else:
-            bot.send_message(message.chat.id, "❌ Неверный пароль!")
-        return
-    elif state == "wait_adm":
-        if message.text == ADMIN_PASSWORD:
-            USERS[uid]["admin"] = 1
-            USERS[uid]["state"] = ""
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            markup.row("👥 Все участники", "⬅️ В главное меню")
-            bot.send_message(message.chat.id, "👨‍💻 Доступ разрешен, Создатель!", reply_markup=markup)
-        else:
-            USERS[uid]["state"] = ""
-            bot.send_message(message.chat.id, "❌ Доступ отклонен!", reply_markup=get_keyboard())
-        return
-            
-    if "Профиль" in message.text:
-        dia = USERS[uid]["diamonds"]
-        lvl = USERS[uid]["level"]
-        bot.send_message(message.chat.id, f"📊 *Ваш игровой профиль:*\n\n⭐ Уровень: {lvl}\n💎 Алмазы: {dia}", parse_mode="Markdown")
-    elif "Владение" in message.text:
-        owned = PURCHASES.get(uid, [])
-        bot.send_message(message.chat.id, f"🎒 *Ваше владение:*\n\n" + (", ".join(owned) if owned else "У вас пока нет купленных персонажей."), parse_mode="Markdown")
-    elif "Магазин" in message.text:
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("👹 Маньяки", callback_data="shop_man"))
-        markup.add(types.InlineKeyboardButton("🏃 Выжившие", callback_data="shop_surv"))
-        bot.send_message(message.chat.id, "🛍️ Выберите категорию игрового магазина:", reply_markup=markup)
-    elif "участники" in message.text and USERS[uid]["admin"] == 1:
-        markup = types.InlineKeyboardMarkup()
-        active_users = False
-        for k, v in USERS.items():
-            if v["admin"] == 0:
-                active_users = True
-                markup.add(types.InlineKeyboardButton(f"⚙️ {v['name']} (Ур: {v['level']} | 💎: {v['diamonds']})", callback_data=f"give_{k}"))
-        if not active_users:
-            bot.send_message(message.chat.id, "👥 Обычных участников в базе пока нет.")
-        else:
-            bot.send_message(message.chat.id, "👥 Нажмите на игрока, чтобы выдать ему +50 💎 и +1 Уровень:", reply_markup=markup)
-    elif "меню" in message.text or "Выйти" in message.text:
-        bot.send_message(message.chat.id, "Вы вернулись в стартовое меню.", reply_markup=get_keyboard())
+MANIACS = { 
 
-@bot.callback_query_handler(func=lambda c: True)
-def call(c):
-    uid = c.from_user.id
-    if uid not in USERS: return
-    owned = PURCHASES.get(uid, [])
+    «Тревис»: 0, 
 
-    if c.data == "shop_man":
-        markup = types.InlineKeyboardMarkup()
-        for k, v in MANIACS.items():
-            if k in owned:
-                markup.add(types.InlineKeyboardButton(f"✅ {k} (Куплено)", callback_data="none"))
-            else:
-                markup.add(types.InlineKeyboardButton(f"{k} — {v} 💎", callback_data=f"buy_{k}_{v}"))
-        bot.edit_message_text("👹 Категория: Маньяки\nНажмите для покупки персонажа:", c.message.chat.id, c.message.message_id, reply_markup=markup)
-    elif c.data == "shop_surv":
-        markup = types.InlineKeyboardMarkup()
-        for k, v in SURVIVORS.items():
-            if k == "Статуя":
-                markup.add(types.InlineKeyboardButton(f"❌ {k} (Недоступна)", callback_data="none"))
-            elif k in owned:
-                markup.add(types.InlineKeyboardButton(f"✅ {k} (Куплено)", callback_data="none"))
-            else:
-                markup.add(types.InlineKeyboardButton(f"{k} — {v} 💎", callback_data=f"buy_{k}_{v}"))
-        bot.edit_message_text("🏃 Категория: Выжившие\nНажмите для покупки персонажа:", c.message.chat.id, c.message.message_id, reply_markup=markup)
-    elif c.data.startswith("buy_"):
-        _, name, price = c.data.split("_")
-        price = int(price)
-        if USERS[uid]["diamonds"] >= price:
-            USERS[uid]["diamonds"] -= price
-            if uid not in PURCHASES: PURCHASES[uid] = []
-            PURCHASES[uid].append(name)
-            bot.answer_callback_query(c.id, f"🎉 Персонаж {name} успешно куплен!", show_alert=True)
-            bot.delete_message(c.message.chat.id, c.message.message_id)
-        else:
-            bot.answer_callback_query(c.id, f"❌ Недостаточно алмазов! Нужно {price} 💎", show_alert=True)
-    elif c.data.startswith("give_"):
-        target_id = int(c.data.split("_"))
-        if target_id in USERS:
-            USERS[target_id]["diamonds"] += 50
-            USERS[target_id]["level"] += 1
-            bot.answer_callback_query(c.id, "✅ Успешно начислено +50 💎 и +1 Уровень!")
+    «Майкл»: 0, 
 
-if __name__ == "__main__":
-    print("СТАРТ")
-    bot.infinity_polling()
+    «Паравозик мен»: 160, 
+
+    «Робин»: 180, 
+
+    «Варден»: 200 
+
+} 
+
+ 
+
+SURVIVORS = { 
+
+    «Инженер»: 20, 
+
+    «Статуя»: «🔒 Временно недоступна», 
+
+    «Aссасин»: 200, 
+
+    «Медик»: 20, 
+
+    «Невидимка»: 100, 
+
+    «Нубик»: 0, 
+
+    «Aнгел-хранитель»: 60, 
+
+    «Блокер»: 120, 
+
+    «Пришелец»: 120 
+
+} 
+
+ 
+
+Def get_keyboard(): 
+
+    Markup = types.ReplyKeyboardMarkup(resize_keyboard=True) 
+
+    Markup.row(«🔑 Регистрация», «🔓 Вход») 
+
+    Markup.row(«⚙️ Panel») 
+
+    Return markup 
+
+ 
+
+Def get_main_keyboard(): 
+
+    Markup = types.ReplyKeyboardMarkup(resize_keyboard=True) 
+
+    Markup.row(«👤 Профиль», «🎒 Владение») 
+
+    Markup.row(«🏪 Магазин», «🚪 Выйти») 
+
+    Return markup 
+
+ 
+
+@bot.message_handler(commands=[‘start’]) 
+
+Def start(message): 
+
+    Uid = message.from_user.id 
+
+    If uid not in USERS: 
+
+        USERS[uid] = {«pass»: «», «diamonds»: 0, «level»: 1, «state»: «», «admin»: 0, «name»: message.from_user.username or f»id_{uid}»} 
+
+    Bot.send_message(message.chat.id, «Добро пожаловать в игру! Пройдите регистрацию.», reply_markup=get_keyboard()) 
+
+ 
+
+@bot.message_handler(func=lambda m: «Регистрация» in m.text) 
+
+Def reg(message): 
+
+    Uid = message.from_user.id 
+
+    If uid not in USERS: 
+
+        USERS[uid] = {«pass»: «», «diamonds»: 0, «level»: 1, «state»: «», «admin»: 0, «name»: message.from_user.username or f»id_{uid}»} 
+
+    If USERS[uid][«pass»] != «»: 
+
+        Bot.send_message(message.chat.id, «Вы уже зарегистрированы!») 
+
+    Else: 
+
+        USERS[uid][«state»] = «wait_pass» 
+
+        Bot.send_message(message.chat.id, «Придумайте и напишите пароль:») 
+
+ 
+
+@bot.message_handler(func=lambda m: «Вход» in m.text) 
+
+Def login(message): 
+
+    Uid = message.from_user.id 
+
+    If uid in USERS and USERS[uid][«pass»] != «»: 
+
+        USERS[uid][«state»] = «wait_login» 
+
+        Bot.send_message(message.chat.id, «Введите ваш пароль:») 
+
+    Else: 
+
+        Bot.send_message(message.chat.id, «Вы еще не зарегистрированы!») 
+
+ 
+
+@bot.message_handler(func=lambda m: «Panel» in m.text) 
+
+Def adm(message): 
+
+    Uid = message.from_user.id 
+
+    If uid not in USERS: 
+
+        USERS[uid] = {«pass»: «», «diamonds»: 0, «level»: 1, «state»: «», «admin»: 0, «name»: message.from_user.username or f»id_{uid}»} 
+
+    If USERS[uid][«admin»] == 1: 
+
+        Markup = types.ReplyKeyboardMarkup(resize_keyboard=True) 
+
+        Markup.row(«👥 Все участники», «⬅️ В меню») 
+
+        Bot.send_message(message.chat.id, «Привет, Создатель!», reply_markup=markup) 
+
+    Else: 
+
+        USERS[uid][«state»] = «wait_adm» 
+
+        Bot.send_message(message.chat.id, «Введите пароль Администратора:») 
+
+ 
+
+@bot.message_handler(func=lambda m: True) 
+
+Def text(message): 
+
+    Uid = message.from_user.id 
+
+    If uid not in USERS: return 
+
+    State = USERS[uid][«state»] 
+
+     
+
+    If state == «wait_pass»: 
+
+        USERS[uid][«pass»] = message.text 
+
+        USERS[uid][«state»] = «» 
+
+        Bot.send_message(message.chat.id, «🎉 Успешно!», reply_markup=get_main_keyboard()) 
+
+        Return 
+
+    Elif state == «wait_login»: 
+
+        If USERS[uid][«pass»] == message.text: 
+
+            USERS[uid][«state»] = «» 
+
+            Bot.send_message(message.chat.id, «✅ Вошли!», reply_markup=get_main_keyboard()) 
+
+        Else: 
+
+            Bot.send_message(message.chat.id, «❌ Неверный пароль!») 
+
+        Return 
+
+    Elif state == «wait_adm»: 
+
+        If message.text == ADMIN_PASSWORD: 
+
+            USERS[uid][«admin»] = 1 
+
+            USERS[uid][«state»] = «» 
+
+            Markup = types.ReplyKeyboardMarkup(resize_keyboard=True) 
+
+            Markup.row(«👥 Все участники», «⬅️ В меню») 
+
+            Bot.send_message(message.chat.id, «👨‍💻 Доступ разрешен!», reply_markup=markup) 
+
+        Else: 
+
+            USERS[uid][«state»] = «» 
+
+            Bot.send_message(message.chat.id, «❌ Отклонено!», reply_markup=get_keyboard()) 
+
+        Return 
+
+         
+
+    If «Профиль» in message.text: 
+
+        Dia = USERS[uid][«diamonds»] 
+
+        Lvl = USERS[uid][«level»] 
+
+        Bot.send_message(message.chat.id, f»📊 Профиль:\n⭐ Уровень: {lvl}\n💎 Алмазы: {dia}») 
+
+    Elif «Владение» in message.text: 
+
+        Owned = PURCHASES.get(uid, []) 
+
+        Bot.send_message(message.chat.id, f»🎒 Владение:\n» + («, «.join(owned) if owned else «Пусто.»)) 
+
+    Elif «Магазин» in message.text: 
+
+        Markup = types.InlineKeyboardMarkup() 
+
+        Markup.add(types.InlineKeyboardButton(«👹 Маньяки», callback_data=»shop_man»)) 
+
+        Markup.add(types.InlineKeyboardButton(«🏃 Выжившие», callback_data=»shop_surv»)) 
+
+        Bot.send_message(message.chat.id, «🛍️ Выберите категорию магазина:», reply_markup=markup) 
+
+    Elif «участники» in message.text and USERS[uid][«admin»] == 1: 
+
+        Markup = types.InlineKeyboardMarkup() 
+
+        Active_users = False 
+
+        For k, v in USERS.items(): 
+
+            If v[«admin»] == 0: 
+
+                Active_users = True 
+
+                Markup.add(types.InlineKeyboardButton(f»⚙️ {v[‘name’]} (Ур: {v[‘level’]} | 💎: {v[‘diamonds’]})», callback_data=f»manage_{k}»)) 
+
+        If not active_users: 
+
+            Bot.send_message(message.chat.id, «👥 Участников пока нет.») 
+
+        Else: 
+
+            Bot.send_message(message.chat.id, «👥 Выберите игрока для управления:», reply_markup=markup) 
+
+    Elif «меню» in message.text or «Выйти» in message.text: 
+
+        Bot.send_message(message.chat.id, «Вы вернулись.», reply_markup=get_keyboard()) 
+
+ 
+
+@bot.callback_query_handler(func=lambda c: True) 
+
+Def call(c): 
+
+    Uid = c.from_user.id 
+
+    If uid not in USERS: return 
+
+    Owned = PURCHASES.get(uid, []) 
+
+     
+
+    If c.data == «shop_man»: 
+
+        Markup = types.InlineKeyboardMarkup() 
+
+        For k, v in MANIACS.items(): 
+
+            If k in owned: 
+
+                Markup.add(types.InlineKeyboardButton(f»✅ {k}», callback_data=»none»)) 
+
+            Else: 
+
+                Markup.add(types.InlineKeyboardButton(f»{k} — {v} 💎», callback_data=f»buy_{k}_{v}»)) 
+
+        Bot.edit_message_text(«👹 Категория: Маньяки», c.message.chat.id, c.message.message_id, reply_markup=markup) 
+
+    Elif c.data == «shop_surv»: 
+
+        Markup = types.InlineKeyboardMarkup() 
+
+        For k, v in SURVIVORS.items(): 
+
+            If k == «Статуя»: 
+
+                Markup.add(types.InlineKeyboardButton(f»❌ {k}», callback_data=»none»)) 
+
+            Elif k in owned: 
+
+                Markup.add(types.InlineKeyboardButton(f»✅ {k}», callback_data=»none»)) 
+
+            Else: 
+
+                Markup.add(types.InlineKeyboardButton(f»{k} — {v} 💎», callback_data=f»buy_{k}_{v}»)) 
+
+        Bot.edit_message_text(«🏃 Категория: Выжившие», c.message.chat.id, c.message.message_id, reply_markup=markup) 
+
+    Elif c.data.startswith(«buy_»): 
+
+        _, name, price = c.data.split(«_») 
+
+        Price = int(price) 
+
+        If USERS[uid][«diamonds»] >= price: 
+
+            USERS[uid][«diamonds»] -= price 
+
+            If uid not in PURCHASES: PURCHASES[uid] = [] 
+
+            PURCHASES[uid].append(name) 
+
+            Bot.answer_callback_query(c.id, f»🎉 Куплен: {name}!», show_alert=True) 
+
+            Bot.delete_message(c.message.chat.id, c.message.message_id) 
+
+        Else: 
+
+            Bot.answer_callback_query(c.id, f»❌ Нужно {price} 💎», show_alert=True) 
+
+             
+
+    Elif c.data.startswith(«manage_»): 
+
+        Target_id = int(c.data.split(«_»)) 
+
+        If target_id in USERS: 
+
+            Name = USERS[target_id][«name»] 
+
+            Lvl = USERS[target_id][«level»] 
+
+            Dia = USERS[target_id][«diamonds»] 
+
+            Markup = types.InlineKeyboardMarkup() 
+
+            Markup.row( 
+
+                Types.InlineKeyboardButton(«💎 +50 Алмазов», callback_data=f»give_dia_{target_id}»), 
+
+                Types.InlineKeyboardButton(«⭐ +1 Уровень», callback_data=f»give_lvl_{target_id}») 
+
+            ) 
+
+            Bot.edit_message_text(f»👤 Игрок: {name}\n⭐ Уровень: {lvl}\n💎 Алмазы: {dia}», c.message.chat.id, c.message.message_id, reply_markup=markup) 
+
+    Elif c.data.startswith(«give_dia_»): 
+
+        Target_id = int(c.data.split(«_»)) 
+
+        If target_id in USERS: 
+
+            USERS[target_id][«diamonds»] += 50 
+
+            Bot.answer_callback_query(c.id, «✅ Выдано +50 💎») 
+
+            c.data = f»manage_{target_id}» 
+
+            call(c) 
+
+    elif c.data.startswith(«give_lvl_»): 
+
+        target_id = int(c.data.split(«_»)) 
+
+        if target_id in USERS: 
+
+            USERS[target_id][«level»] += 1 
+
+            Bot.answer_callback_query(c.id, «✅ Выдан +1 ⭐») 
+
+            c.data = f»manage_{target_id}» 
+
+            call(c) 
+
+ 
+
+if __name__ == «__main__»: 
+
+    print(«СТАРТ») 
+
+    bot.infinity_polling() 
+
+ 
